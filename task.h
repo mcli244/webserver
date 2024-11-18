@@ -15,7 +15,7 @@
 #include <sys/sendfile.h>
 #include <sys/wait.h>
 
-char *path = "/home/xd/XD/Web/WebServer";
+char *path = "/home/uisrc/workspace/pack/webServer";
 const int BUFFER_SIZE = 4096;
 
 class task
