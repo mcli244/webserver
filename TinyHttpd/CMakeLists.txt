@@ -15,6 +15,7 @@ include_directories(${CMAKE_INSTALL_INCLUDEDIR})
 set(SRCS
 	${PROJECT_TOP_DIR}/main.cpp
 	${PROJECT_TOP_DIR}/TcpServer.cpp
+	${PROJECT_TOP_DIR}/HttpServer.cpp
 )
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_INSTALL_LIBDIR})

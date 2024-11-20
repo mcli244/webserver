@@ -3,7 +3,7 @@
 #include <thread>
 #include <iostream>
 
-using namespace Tinyhttpd::net;
+using namespace Tinyhttpd;
 using namespace std;
 
 // 设置非阻塞模式
@@ -72,46 +72,6 @@ TcpServer::~TcpServer()
     close(epollFd_);
 }
 
-
-#if 0
-void TcpServer::worker(void *arg)
-{
-    TcpServer *sever = (TcpServer *)arg;
-    struct TcpClients cli;
-    socklen_t len = sizeof(cli.connaddr);
-    
-    while(!sever->isStop_)
-    {
-        cli.connfd = accept(sever->sockfd_, (struct sockaddr *)&cli.connaddr, &len);
-        if(cli.connfd > 0)
-        {
-            struct TcpClients *pcli = new (struct TcpClients);
-            *pcli = cli;
-            sever->clients_.push_back(pcli);
-            sever->newConnectCallback_(arg, &cli.connaddr, cli.connfd);
-        }
-    }
-}
-
-void TcpServer::recver(void *arg)
-{
-    TcpServer *sever = (TcpServer *)arg;
-    struct TcpClients *cli;
-    while(!sever->isStop_)
-    {
-        if(!sever->clients_.empty())
-        {
-            cli = sever->clients_.front();
-            sever->clients_.pop_front();
-            
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-#endif
-
 void TcpServer::handleConnection(bool enableET) {
     sockaddr_in clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
@@ -121,18 +81,22 @@ void TcpServer::handleConnection(bool enableET) {
         return;
     }
 
-    std::cout << "New connection: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
+    // std::cout << "New connection: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << std::endl;
     setNonBlocking(clientFd);
     addFdToEpoll(clientFd, enableET);
+    if(newConnectCallback_)
+        newConnectCallback_(NULL, clientFd);
 }
 
 // 处理读事件
-void handleRead(int fd) {
-    char buffer[1024];
+void TcpServer::handleRead(int fd) {
+    char buffer[65535];
     while (true) {
         ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
         if (bytesRead == 0) {
-            std::cout << "Client disconnected, fd: " << fd << std::endl;
+            // std::cout << "Client disconnected, fd: " << fd << std::endl;
+            if(disconnectCallback_)
+                disconnectCallback_(NULL, fd);
             close(fd);
             break;
         } else if (bytesRead < 0) {
@@ -143,16 +107,17 @@ void handleRead(int fd) {
             close(fd);
             break;
         } else {
-            std::cout << "Received: " << std::string(buffer, bytesRead) << std::endl;
-            // 回显
-            write(fd, buffer, bytesRead);
+            // std::cout << "Received: " << std::string(buffer, bytesRead) << std::endl;
+            
+            if(onMessgeCallback_)
+                onMessgeCallback_(NULL, (const char *)&buffer, bytesRead, fd);
         }
     }
 }
 
 bool TcpServer::run(void)
 {
-     std::vector<epoll_event> events_(MAX_EVENTS);
+    std::vector<epoll_event> events_(MAX_EVENTS);
     while(!isStop_)
     {
         int eventCount = epoll_wait(epollFd_, events_.data(), MAX_EVENTS, -1);
