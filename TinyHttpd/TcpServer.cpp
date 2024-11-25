@@ -16,12 +16,17 @@ int TcpServer::setNonBlocking(int fd)
 
 void TcpServer::addFdToEpoll(int fd, bool enableET) {
     epoll_event event;
+    int ret = -1;
     event.data.fd = fd;
     event.events = EPOLLIN;
     if (enableET) {
         event.events |= EPOLLET;
     }
-    epoll_ctl(epollFd_, EPOLL_CTL_ADD, fd, &event);
+    ret = epoll_ctl(epollFd_, EPOLL_CTL_ADD, fd, &event);
+    if(ret < -1)
+    {
+        std::cerr << "epoll_ctl failed: " << strerror(errno) << std::endl;
+    }
 }
 
 TcpServer::TcpServer(const string ip, unsigned port)
@@ -120,6 +125,7 @@ bool TcpServer::run(void)
     std::vector<epoll_event> events_(MAX_EVENTS);
     while(!isStop_)
     {
+        std::cout << "epoll_wait..." <<std::endl;
         int eventCount = epoll_wait(epollFd_, events_.data(), MAX_EVENTS, -1);
         if (eventCount == -1) {
             std::cerr << "Epoll wait error: " << strerror(errno) << std::endl;
